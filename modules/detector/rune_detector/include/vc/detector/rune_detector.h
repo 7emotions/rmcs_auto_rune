@@ -6,8 +6,7 @@
 using RuneFeatureCombo = std::tuple<FeatureNode_ptr, FeatureNode_ptr, FeatureNode_ptr>;
 using RuneFeatureComboConst = std::tuple<FeatureNode_cptr, FeatureNode_cptr, FeatureNode_cptr>;
 
-class RuneDetector : public Detector
-{
+class RuneDetector : public Detector {
 public:
     RuneDetector() = default;
 
@@ -24,10 +23,13 @@ public:
      * @param input 识别器输入
      * @param output 识别器输出
      */
-    void detect(DetectorInput &input, DetectorOutput &output) override;
+    void detect(DetectorInput& input, DetectorOutput& output) override;
+    void predict_ms(DetectorOutput& output, uint64_t ms);
 
     //! 构建 RuneDetector
-    static inline std::unique_ptr<RuneDetector> make_detector() { return std::make_unique<RuneDetector>(); }
+    static inline std::unique_ptr<RuneDetector> make_detector() {
+        return std::make_unique<RuneDetector>();
+    }
 
 private:
     /**
@@ -38,7 +40,8 @@ private:
      * @param[in] target_color 目标颜色
      * @param[in] threshold 阈值
      */
-    static void binary(const cv::Mat &src, cv::Mat &bin, PixChannel target_color, uint8_t threshold);
+    static void
+        binary(const cv::Mat& src, cv::Mat& bin, PixChannel target_color, uint8_t threshold);
 
     /**
      * @brief 找出所有的配对神符特征
@@ -48,7 +51,9 @@ private:
      * @param[out] features 找到的所有特征
      * @param[out] matched_features 配对好的特征 (靶心、中心、扇叶),未找出的特征将会用 nullptr 补齐
      */
-    static bool findFeatures(cv::Mat src, std::vector<FeatureNode_cptr> &features, std::vector<RuneFeatureCombo> &matched_features);
+    static bool findFeatures(
+        cv::Mat src, std::vector<FeatureNode_cptr>& features,
+        std::vector<RuneFeatureCombo>& matched_features);
 
     /**
      * @brief 初步获取所有的神符特征
@@ -61,7 +66,12 @@ private:
      * @param[in] hierarchy 轮廓的层级关系
      * @param[in] continue_idx 需要跳过的轮廓索引
      */
-    static void extractRuneFeatures(std::vector<FeatureNode_ptr> &targets_inactive,std::vector<FeatureNode_ptr> &targets_active,std::vector<FeatureNode_ptr> &fans_inactive,std::vector<FeatureNode_ptr> &fans_active,std::vector<FeatureNode_ptr> &centers,const std::vector<Contour_cptr> &contours,const std::vector<cv::Vec4i> &hierarchy,std::unordered_set<size_t> &continue_idx);
+    static void extractRuneFeatures(
+        std::vector<FeatureNode_ptr>& targets_inactive,
+        std::vector<FeatureNode_ptr>& targets_active, std::vector<FeatureNode_ptr>& fans_inactive,
+        std::vector<FeatureNode_ptr>& fans_active, std::vector<FeatureNode_ptr>& centers,
+        const std::vector<Contour_cptr>& contours, const std::vector<cv::Vec4i>& hierarchy,
+        std::unordered_set<size_t>& continue_idx);
 
     /**
      * @brief 将神符组合体与追踪器进行匹配
@@ -72,14 +82,16 @@ private:
      *
      * @return bool 是否匹配成功 [ 要求: 神符组合体数量 = 追踪器数量]
      */
-    bool match(const std::vector<FeatureNode_ptr> &combos, std::vector<FeatureNode_ptr> &trackers, bool is_vanish_update);
+    bool match(
+        const std::vector<FeatureNode_ptr>& combos, std::vector<FeatureNode_ptr>& trackers,
+        bool is_vanish_update);
 
     /**
      * @brief 筛选合适的未激活的靶心
      *
      * @param[in,out] inactive_targets 需要筛选的未激活的靶心
      */
-    static bool filterInactiveTarget(std::vector<FeatureNode_ptr> &inactive_targets);
+    static bool filterInactiveTarget(std::vector<FeatureNode_ptr>& inactive_targets);
 
     /**
      * @brief 筛选合适的激活的靶心
@@ -87,7 +99,9 @@ private:
      * @param[in,out] active_targets 需要筛选的激活的靶心
      * @param[in] inactive_targets 未激活的靶心
      */
-    static bool filterActiveTarget(std::vector<FeatureNode_ptr> &active_targets, std::vector<FeatureNode_ptr> &inactive_targets);
+    static bool filterActiveTarget(
+        std::vector<FeatureNode_ptr>& active_targets,
+        std::vector<FeatureNode_ptr>& inactive_targets);
     /**
      * @brief 筛选合适的未激活的扇叶
      *
@@ -96,10 +110,11 @@ private:
      * @param[in] active_targets 激活的靶心
      * @param[in] active_fans 激活的扇叶
      */
-    static bool filterInactiveFan(std::vector<FeatureNode_ptr> &inactive_fans,
-                                  const std::vector<FeatureNode_ptr> &inactive_targets,
-                                  const std::vector<FeatureNode_ptr> &active_targets,
-                                  const std::vector<FeatureNode_ptr> &active_fans);
+    static bool filterInactiveFan(
+        std::vector<FeatureNode_ptr>& inactive_fans,
+        const std::vector<FeatureNode_ptr>& inactive_targets,
+        const std::vector<FeatureNode_ptr>& active_targets,
+        const std::vector<FeatureNode_ptr>& active_fans);
 
     /**
      * @brief 筛选合适的神符中心
@@ -110,11 +125,11 @@ private:
      * @param[in] inactive_fans 未激活的扇叶
      * @param[in] active_fans 激活的扇叶
      */
-    static bool filterCenter(std::vector<FeatureNode_ptr> &centers,
-                             const std::vector<FeatureNode_ptr> &inactive_targets,
-                             const std::vector<FeatureNode_ptr> &active_targets,
-                             const std::vector<FeatureNode_ptr> &inactive_fans,
-                             const std::vector<FeatureNode_ptr> &active_fans);
+    static bool filterCenter(
+        std::vector<FeatureNode_ptr>& centers, const std::vector<FeatureNode_ptr>& inactive_targets,
+        const std::vector<FeatureNode_ptr>& active_targets,
+        const std::vector<FeatureNode_ptr>& inactive_fans,
+        const std::vector<FeatureNode_ptr>& active_fans);
 
     /**
      * @brief 筛选残缺构造的已激活扇叶
@@ -126,12 +141,12 @@ private:
      * @param[in] active_fans 激活的扇叶
      * @param[in] best_center 最佳神符中心点
      */
-    static bool filterActiveFanIncomplete(std::vector<FeatureNode_ptr> &fans_Incomplete,
-                                          const std::vector<FeatureNode_ptr> &inactive_targets,
-                                          const std::vector<FeatureNode_ptr> &active_targets,
-                                          const std::vector<FeatureNode_ptr> &inactive_fans,
-                                          const std::vector<FeatureNode_ptr> &active_fans,
-                                          const FeatureNode_ptr &best_center);
+    static bool filterActiveFanIncomplete(
+        std::vector<FeatureNode_ptr>& fans_Incomplete,
+        const std::vector<FeatureNode_ptr>& inactive_targets,
+        const std::vector<FeatureNode_ptr>& active_targets,
+        const std::vector<FeatureNode_ptr>& inactive_fans,
+        const std::vector<FeatureNode_ptr>& active_fans, const FeatureNode_ptr& best_center);
     /**
      * @brief 过滤距离过远的轮廓
      *
@@ -141,12 +156,10 @@ private:
      * @param[in] fans 所有神符扇叶
      * @param[out] far_contour_idxs 距离过远的轮廓下标
      */
-    static bool filterFarContours(const std::vector<Contour_cptr> &contours,
-                                  const std::vector<FeatureNode_ptr> &targets,
-                                  const FeatureNode_ptr &center,
-                                  const std::vector<FeatureNode_ptr> &fans,
-                                  const std::unordered_set<size_t> &mask,
-                                  std::unordered_set<size_t> &far_contour_idxs);
+    static bool filterFarContours(
+        const std::vector<Contour_cptr>& contours, const std::vector<FeatureNode_ptr>& targets,
+        const FeatureNode_ptr& center, const std::vector<FeatureNode_ptr>& fans,
+        const std::unordered_set<size_t>& mask, std::unordered_set<size_t>& far_contour_idxs);
 
     /**
      * @brief 获取旋转中心
@@ -159,7 +172,9 @@ private:
      * @return 非精确状态下，求出的旋转中心只是近似值。但是会提高成功率
      *
      */
-    static bool getRotateCenter(const std::vector<FeatureNode_ptr> &targets, const std::vector<FeatureNode_ptr> &fans, cv::Point2f &rotate_center);
+    static bool getRotateCenter(
+        const std::vector<FeatureNode_ptr>& targets, const std::vector<FeatureNode_ptr>& fans,
+        cv::Point2f& rotate_center);
 
     /**
      * @brief 获取最佳的神符中心点
@@ -169,7 +184,9 @@ private:
      * @param[in] p_centers 所有神符中心点
      * @return RuneC_ptr
      */
-    FeatureNode_ptr getBestCenter(const std::vector<FeatureNode_ptr> &p_targets, const std::vector<FeatureNode_ptr> &p_centers);
+    FeatureNode_ptr getBestCenter(
+        const std::vector<FeatureNode_ptr>& p_targets,
+        const std::vector<FeatureNode_ptr>& p_centers);
 
     /**
      * @brief 获取配对后的特征
@@ -179,7 +196,9 @@ private:
      * @param[in] p_fans 所有神符扇叶
      * @return 配对后的特征组
      */
-    static std::vector<RuneFeatureCombo> getMatchedFeature(const std::vector<FeatureNode_ptr> &p_targets, const FeatureNode_ptr &p_center, const std::vector<FeatureNode_ptr> &p_fans);
+    static std::vector<RuneFeatureCombo> getMatchedFeature(
+        const std::vector<FeatureNode_ptr>& p_targets, const FeatureNode_ptr& p_center,
+        const std::vector<FeatureNode_ptr>& p_fans);
 
     /**
      * @brief 获取神符在相机坐标系下的 PNP 解算数据
@@ -189,9 +208,9 @@ private:
      * @param[in] matched_features 配对好的特征 (靶心、中心、扇叶)
      * @param[in] gyro_data 陀螺仪数据
      */
-    bool getPnpData(PoseNode &camera_pnp_data,
-                    const FeatureNode_ptr &group,
-                    const std::vector<RuneFeatureComboConst> &matched_features) const;
+    bool getPnpData(
+        PoseNode& camera_pnp_data, const FeatureNode_ptr& group,
+        const std::vector<RuneFeatureComboConst>& matched_features) const;
 
     /**
      * @brief 获取所有神符组合体
@@ -204,10 +223,10 @@ private:
      * @note    1. `matched_features` 用于提供神符类型信息
      *          2. `camera_pnp_data` 用于提供神符在相机坐标系下的位姿信息
      */
-    bool getRunes(std::vector<FeatureNode_ptr> &current_combos,
-                  const FeatureNode_ptr &group,
-                  const std::vector<RuneFeatureComboConst> &matched_features,
-                  const PoseNode &camera_pnp_data) const;
+    bool getRunes(
+        std::vector<FeatureNode_ptr>& current_combos, const FeatureNode_ptr& group,
+        const std::vector<RuneFeatureComboConst>& matched_features,
+        const PoseNode& camera_pnp_data) const;
 
     /**
      * @brief 获取神符组在相机坐标系下的PNP数据
@@ -219,10 +238,8 @@ private:
      *
      * @return PnP解算的数据
      */
-    bool getCameraPnpData(const FeatureNode_ptr &group,
-                          const std::vector<cv::Point2f> &points_2d,
-                          const std::vector<cv::Point3f> &points_3d,
-                          const std::vector<float> &point_weights,
-                          PoseNode &pnp_data) const;
-
+    bool getCameraPnpData(
+        const FeatureNode_ptr& group, const std::vector<cv::Point2f>& points_2d,
+        const std::vector<cv::Point3f>& points_3d, const std::vector<float>& point_weights,
+        PoseNode& pnp_data) const;
 };

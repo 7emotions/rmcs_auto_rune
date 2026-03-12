@@ -6,9 +6,10 @@ endif()
 
 cmake_minimum_required(VERSION 3.15)
 
-project(VisCore
+project(rmcs_auto_rune
         VERSION 0.1.0)
 
+find_package(ament_cmake REQUIRED)
 # cmake 函数/宏
 include(cmake/VisCoreModule.cmake)
 
@@ -24,3 +25,5 @@ add_subdirectory(modules)
 
 # VisCore 测试模块
 add_subdirectory(examples)
+
+ament_package()

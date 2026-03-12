@@ -120,6 +120,34 @@ function(VisCore_add_module module_name)
         set(VisCore_MODULES_INTERFACE ${VisCore_MODULES_INTERFACE} ${module_lib_name} CACHE INTERNAL "VisCore接口模块" FORCE)
     endif()
     set(VisCore_MODULES_BUILD ${VisCore_MODULES_BUILD} ${module_lib_name} CACHE INTERNAL "VisCore构建库" FORCE)
+
+	if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/include)
+        # 如果头文件在模块特定的子目录中
+        if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/include/${module_name})
+            install(
+                DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/${module_name}/
+                DESTINATION include/${module_name}
+                FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.hxx"
+            )
+        else()
+            # 头文件直接在include目录下
+            install(
+                DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/
+                DESTINATION include/
+                FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.hxx"
+            )
+        endif()
+    endif()
+    
+    # 安装库文件（只对非INTERFACE库）
+    if(NOT MD_INTERFACE)
+        install(TARGETS ${module_lib_name}
+            EXPORT ${PROJECT_NAME}_targets
+            ARCHIVE DESTINATION lib
+            LIBRARY DESTINATION lib
+            RUNTIME DESTINATION bin
+        )
+    endif()
 endfunction()
 
         

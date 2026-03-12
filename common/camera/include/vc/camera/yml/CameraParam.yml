@@ -1,6 +1,6 @@
 %YAML:1.0
 ---
-exposure: 4300
+exposure: 2000
 gamma: 100
 brightness: 15
 contrast: 100
@@ -18,14 +18,13 @@ cameraMatrix: !!opencv-matrix
    rows: 3
    cols: 3
    dt: f
-   data: [ 1.61335217e+03, 0., 6.93771606e+02, 0., 1.58594580e+03,
-       5.91027893e+02, 0., 0., 1. ]
+   data: [ 1.72223181e+03, 0., 7.01305664e+02, 0., 1.72487646e+03,
+       5.64582153e+02, 0., 0., 1. ]
 distCoeff: !!opencv-matrix
    rows: 5
    cols: 1
    dt: f
-   data: [ -5.49999997e-02, -4.72000018e-02, 3.89999989e-03,
-       5.49999997e-03, 6.20000018e-03 ]
+   data: [ -6.42324015e-02, -8.76674950e-02, 0., 0., 7.92381823e-01 ]
 camera2joint_euler_angle: !!opencv-matrix
    rows: 3
    cols: 1
