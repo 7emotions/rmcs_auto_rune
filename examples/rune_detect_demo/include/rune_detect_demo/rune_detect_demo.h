@@ -45,3 +45,21 @@ void parseCommandLine(int argc, char **argv);
  * @brief 配置VideoCapture对象
  */
 void setupVideoCapture(cv::VideoCapture &cap);
+
+/**
+ * @brief 计算旋转后的平移向量
+ *
+ * 通过 rune_group 获取神符中心的转轴（Z轴方向），根据角速度模式计算
+ * theta，以转轴和 theta 构造轴角旋转，并将其应用到 tracker 的 tvec 上。
+ *
+ * @param[in] rune_group 神符序列组
+ * @param[in] tracker 追踪器
+ * @param[in] use_sine_mode 角速度模式选择 (false: 常量C, true: 正弦函数)
+ * @param[in] dt_ms 时间步长（毫秒）
+ * @return 旋转后的平移向量
+ */
+cv::Vec3d calcRotatedTvec(
+    const std::shared_ptr<RuneGroup> &rune_group,
+    const FeatureNode_cptr &tracker,
+    bool use_sine_mode,
+    double dt_ms);

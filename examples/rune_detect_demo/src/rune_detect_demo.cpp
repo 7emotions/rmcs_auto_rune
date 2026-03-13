@@ -1,7 +1,10 @@
 #include "../include/rune_detect_demo/rune_detect_demo.h"
 #include "../include/rune_detect_demo/rune_detect_demo_param.h"
+#include "../include/rune_detect_demo/rune_rotation_param.h"
 #include "vc/core/debug_tools/window_auto_layout.h"
 #include "vc/math/pose_node.hpp"
+
+#include <cmath>
 
 using namespace std;
 using namespace cv;
@@ -81,6 +84,73 @@ void process(cv::VideoCapture& vid_cap) {
     // 绘制
     Mat img_show = DebugTools::get()->getImage();
     rune_group->drawFeature(img_show);
+
+    // 计算旋转后的tvec
+    double dt_ms = 16.0; // 默认时间步长
+    bool use_sine_mode = false;
+    Vec3d rotated_tvec = calcRotatedTvec(rune_group, target_tracker, use_sine_mode, dt_ms);
+    VC_PASS_INFO(
+        "Rotated tvec: [%.2f, %.2f, %.2f]", rotated_tvec[0], rotated_tvec[1], rotated_tvec[2]);
+}
+
+cv::Vec3d calcRotatedTvec(
+    const std::shared_ptr<RuneGroup>& rune_group,
+    const FeatureNode_cptr& tracker,
+    bool use_sine_mode,
+    double dt_ms) {
+    // 1. 通过rune_group获取神符中心的转轴
+    PoseNode rune_to_cam;
+    if (!rune_group->getCamPnpDataFromFilter(rune_to_cam))
+        return Vec3d(0, 0, 0);
+
+    // 转轴为神符坐标系的Z轴在相机坐标系下的方向
+    Vec3d rotation_axis = rune_to_cam.rmat() * Vec3d(0, 0, 1);
+    double axis_norm = cv::norm(rotation_axis);
+    if (axis_norm < 1e-9)
+        return Vec3d(0, 0, 0);
+    rotation_axis /= axis_norm;
+
+    // 2. 计算角速度w（两种模式）
+    static double accumulated_time_s = 0.0;
+    double dt_s = dt_ms / 1000.0;
+    accumulated_time_s += dt_s;
+
+    double w = 0.0;
+    if (!use_sine_mode) {
+        // 常量模式
+        w = rune_rotation_param.CONST_W;
+    } else {
+        // 正弦模式: w = A * sin(B * t + C) + D
+        w = rune_rotation_param.SIN_A
+                * std::sin(
+                    rune_rotation_param.SIN_B * accumulated_time_s + rune_rotation_param.SIN_C)
+            + rune_rotation_param.SIN_D;
+    }
+
+    // 3. 通过dt构造theta
+    double theta = w * dt_s;
+
+    // 4. 以转轴和theta构造轴角
+    Vec3d axis_angle = rotation_axis * theta;
+
+    // 5. 通过tracker获取pose的tvec
+    auto tracker_ = TrackingFeatureNode::cast(tracker);
+    if (!tracker_ || tracker_->getHistoryNodes().empty())
+        return Vec3d(0, 0, 0);
+    auto combo = tracker_->getHistoryNodes().front();
+    if (!combo)
+        return Vec3d(0, 0, 0);
+    auto& pose_nodes = combo->getPoseCache().getPoseNodes();
+    if (pose_nodes.find(CoordFrame::CAMERA) == pose_nodes.end())
+        return Vec3d(0, 0, 0);
+    Vec3d tvec = pose_nodes.at(CoordFrame::CAMERA).tvec();
+
+    // 6. 将轴角的旋转应用到tvec输出tvec
+    Matx33d R;
+    cv::Rodrigues(axis_angle, R);
+    Vec3d rotated_tvec = R * tvec;
+
+    return rotated_tvec;
 }
 
 void updateParam(cv::VideoCapture& cap) {
