@@ -86,7 +86,11 @@ void process(cv::VideoCapture& vid_cap) {
     rune_group->drawFeature(img_show);
 
     // 计算旋转后的tvec
-    double dt_ms = 16.0; // 默认时间步长
+    static int64_t last_tick_ms = 0;
+    int64_t current_tick_ms =
+        static_cast<int64_t>(cv::getTickCount() * 1000.0 / cv::getTickFrequency());
+    double dt_ms = (last_tick_ms > 0) ? static_cast<double>(current_tick_ms - last_tick_ms) : 16.0;
+    last_tick_ms = current_tick_ms;
     bool use_sine_mode = false;
     Vec3d rotated_tvec = calcRotatedTvec(rune_group, target_tracker, use_sine_mode, dt_ms);
     VC_PASS_INFO(
@@ -145,7 +149,7 @@ cv::Vec3d calcRotatedTvec(
         return Vec3d(0, 0, 0);
     Vec3d tvec = pose_nodes.at(CoordFrame::CAMERA).tvec();
 
-    // 6. 将轴角的旋转应用到tvec输出tvec
+    // 6. 将轴角的旋转应用到tvec并输出旋转后的tvec
     Matx33d R;
     cv::Rodrigues(axis_angle, R);
     Vec3d rotated_tvec = R * tvec;
