@@ -5,6 +5,7 @@
 #include "vc/math/pose_node.hpp"
 
 #include <cmath>
+#include <opencv2/core/utility.hpp>
 
 using namespace std;
 using namespace cv;
@@ -17,7 +18,7 @@ void process(cv::VideoCapture& vid_cap) {
     // updateParam(vid_cap);
 
     Mat frame;
-    vid_cap.read(frame);                                     // 从摄像头捕获一帧
+    vid_cap.read(frame);           // 从摄像头捕获一帧
     if (frame.empty()) {
         return;
     }
@@ -25,9 +26,9 @@ void process(cv::VideoCapture& vid_cap) {
     DetectorInput input;
     DetectorOutput output;
     input.setImage(frame);
-    input.setGyroData(GyroData());                           // 空数据
+    input.setGyroData(GyroData()); // 空数据
     int64_t tick_ms = static_cast<int64_t>(cv::getTickCount() * 1000.0 / cv::getTickFrequency());
-    input.setTick(tick_ms);
+    input.setTick(cv::getTickCount());
     input.setColor(PixChannel::BLUE);
     input.setColorThresh(17);
     input.setFeatureNodes(rune_groups);
@@ -38,34 +39,34 @@ void process(cv::VideoCapture& vid_cap) {
     auto rune_group = RuneGroup::cast(rune_groups.front());
     if (rune_group->childFeatures().empty())
         return;
-    rune_group->setPredictFunc(
-        [wg = std::weak_ptr<RuneGroup>(rune_group)](int64_t future_tick_ms) -> double {
-            auto g = wg.lock();
-            if (!g)
-                return 0.0;
+    // rune_group->setPredictFunc(
+    //     [wg = std::weak_ptr<RuneGroup>(rune_group)](int64_t future_tick_ms) -> double {
+    //         auto g = wg.lock();
+    //         if (!g)
+    //             return 0.0;
 
-            const auto& ticks = g->getHistoryTicks();        // ms
-            const auto& raw = g->getRawDatas();              // deg(roll)
+    //         const auto& ticks = g->getHistoryTicks();        // ms
+    //         const auto& raw = g->getRawDatas();              // deg(roll)
 
-            if (ticks.size() < 2 || raw.size() < 2) {
-                return raw.empty() ? 0.0 : raw.front();
-            }
+    //         if (ticks.size() < 2 || raw.size() < 2) {
+    //             return raw.empty() ? 0.0 : raw.front();
+    //         }
 
-            const double t0 = static_cast<double>(ticks[0]); // 最新
-            const double t1 = static_cast<double>(ticks[1]); // 次新
-            const double a0 = static_cast<double>(raw[0]);   // 最新 roll (deg)
-            const double a1 = static_cast<double>(raw[1]);   // 次新 roll (deg)
+    //         const double t0 = static_cast<double>(ticks[0]); // 最新
+    //         const double t1 = static_cast<double>(ticks[1]); // 次新
+    //         const double a0 = static_cast<double>(raw[0]);   // 最新 roll (deg)
+    //         const double a1 = static_cast<double>(raw[1]);   // 次新 roll (deg)
 
-            const double dt = (t0 - t1);                     // ms
-            if (dt <= 1e-6)
-                return a0;
+    //         const double dt = (t0 - t1);                     // ms
+    //         if (dt <= 1e-6)
+    //             return a0;
 
-            // deg/ms
-            const double w = (a0 - a1) / dt;
+    //         // deg/ms
+    //         const double w = (a0 - a1) / dt;
 
-            const double df = static_cast<double>(future_tick_ms) - t0; // ms
-            return a0 + w * df;
-        });
+    //         const double df = static_cast<double>(future_tick_ms) - t0; // ms
+    //         return a0 + w * df;
+    //     });
 
     FeatureNode_cptr target_tracker = nullptr;
     for (auto tracker : rune_group->getTrackers()) {
@@ -93,15 +94,15 @@ void process(cv::VideoCapture& vid_cap) {
     last_tick_ms = current_tick_ms;
     bool use_sine_mode = false;
     Vec3d rotated_tvec = calcRotatedTvec(rune_group, target_tracker, use_sine_mode, dt_ms);
+    auto pose = target_tracker->getPoseCache().getPoseNodes().at(CoordFrame::CAMERA).tvec();
+    VC_PASS_INFO("Raw tvec: [%.2f, %.2f, %.2f]", pose[0], pose[1], pose[2]);
     VC_PASS_INFO(
         "Rotated tvec: [%.2f, %.2f, %.2f]", rotated_tvec[0], rotated_tvec[1], rotated_tvec[2]);
 }
 
 cv::Vec3d calcRotatedTvec(
-    const std::shared_ptr<RuneGroup>& rune_group,
-    const FeatureNode_cptr& tracker,
-    bool use_sine_mode,
-    double dt_ms) {
+    const std::shared_ptr<RuneGroup>& rune_group, const FeatureNode_cptr& tracker,
+    bool use_sine_mode, double dt_ms) {
     // 1. 通过rune_group获取神符中心的转轴
     PoseNode rune_to_cam;
     if (!rune_group->getCamPnpDataFromFilter(rune_to_cam))
@@ -126,9 +127,8 @@ cv::Vec3d calcRotatedTvec(
     } else {
         // 正弦模式: w = A * sin(B * t + C) + D
         w = rune_rotation_param.SIN_A
-                * std::sin(
-                    rune_rotation_param.SIN_B * accumulated_time_s + rune_rotation_param.SIN_C)
-            + rune_rotation_param.SIN_D;
+              * std::sin(rune_rotation_param.SIN_B * accumulated_time_s + rune_rotation_param.SIN_C)
+          + rune_rotation_param.SIN_D;
     }
 
     // 3. 通过dt构造theta
