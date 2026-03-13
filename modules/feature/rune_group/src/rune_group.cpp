@@ -343,12 +343,12 @@ int findMode(const vector<int>& nums) {
 bool RuneGroup::updateCenterEstimation() {
     if (getTrackers().empty())
         return false;
-    const auto& tracker_raw = getTrackers().front();
-    const auto& tracker = TrackingFeatureNode::cast(tracker_raw);
+    const auto tracker_raw = getTrackers().front();
+    const auto tracker = TrackingFeatureNode::cast(tracker_raw);
     if (tracker->getHistoryNodes().empty())
         return false;
     const auto& combo = tracker->getHistoryNodes().front();
-    const auto& center =
+    const auto center =
         RuneCenter::cast(combo->getChildFeatures().at(ChildFeatureType::RUNE_CENTER));
     const auto& raw_cam_pose = center->getPoseCache().getPoseNodes().at(CoordFrame::CAMERA);
 
