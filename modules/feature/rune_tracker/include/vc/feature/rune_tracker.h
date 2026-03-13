@@ -81,6 +81,16 @@ public:
      */
     cv::Point3f getFilteredTargetPos() const { return m_target_ekf.getState(); }
 
+    /**
+     * @brief 中心 EKF 是否已用首帧测量初始化
+     */
+    bool isCenterEKFInitialized() const { return m_center_ekf.isInitialized(); }
+
+    /**
+     * @brief 靶心 EKF 是否已用首帧测量初始化
+     */
+    bool isTargetEKFInitialized() const { return m_target_ekf.isInitialized(); }
+
 private:
     /**
      * @brief 从神符组合体更新内部数据
