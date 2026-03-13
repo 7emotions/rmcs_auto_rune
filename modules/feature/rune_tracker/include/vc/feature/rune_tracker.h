@@ -7,6 +7,7 @@
 
 #pragma once
 #include "vc/feature/tracking_feature_node.h"
+#include "vc/feature/rune_tracker_ekf.h"
 
 //! 神符时间序列追踪器
 class RuneTracker : public TrackingFeatureNode
@@ -65,6 +66,21 @@ public:
      * @note 默认实现为空，子类可以重写此函数以实现具体绘制逻辑。
      */
     virtual void drawFeature(cv::Mat &image, const DrawConfig_cptr &config = nullptr) const override;
+
+    /**
+     * @brief 获取中心位置的 EKF 滤波结果
+     *
+     * @return 滤波后的中心 3D 位置（相机坐标系）
+     */
+    cv::Point3f getFilteredCenterPos() const { return m_center_ekf.getState(); }
+
+    /**
+     * @brief 获取靶心位置的 EKF 滤波结果
+     *
+     * @return 滤波后的靶心 3D 位置（相机坐标系）
+     */
+    cv::Point3f getFilteredTargetPos() const { return m_target_ekf.getState(); }
+
 private:
     /**
      * @brief 从神符组合体更新内部数据
@@ -72,6 +88,13 @@ private:
      * @param[in] p_combo 神符组合体共享指针
      */
     void updateFromRune(FeatureNode_ptr p_combo);
+
+    //! 神符中心位置 EKF 滤波器
+    RuneTrackerEKF m_center_ekf;
+    //! 神符靶心位置 EKF 滤波器
+    RuneTrackerEKF m_target_ekf;
+    //! 上一帧时间戳（用于计算 dt）
+    int64_t m_prev_tick = 0;
 };
 
 //! 神符追踪器智能指针类型

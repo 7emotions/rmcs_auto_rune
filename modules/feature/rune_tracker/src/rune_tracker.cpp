@@ -2,6 +2,7 @@
 #include "vc/feature/rune_tracker_param.h"
 #include "vc/feature/rune_combo.h"
 #include "vc/camera/camera_param.h"
+#include "vc/math/pose_node.hpp"
 
 using namespace std;
 using namespace cv;
@@ -12,6 +13,52 @@ void RuneTracker::updateFromRune(FeatureNode_ptr p_combo)
     setPoseCache(p_combo->getPoseCache());
     getHistoryNodes().push_front(p_combo);
     getHistoryTicks().push_front(p_combo->getTick());
+
+    int64_t current_tick = p_combo->getTick();
+
+    // 计算 dt 并执行预测步骤
+    if (m_prev_tick > 0 && (m_center_ekf.isInitialized() || m_target_ekf.isInitialized()))
+    {
+        double dt = static_cast<double>(current_tick - m_prev_tick) / cv::getTickFrequency();
+        // 合理性校验：dt 超出 [0, 1) 秒时跳过预测（防止首帧或长时间掉帧后跳变）
+        if (dt > 0.0 && dt < 1.0)
+        {
+            m_center_ekf.predict(dt);
+            m_target_ekf.predict(dt);
+        }
+    }
+    m_prev_tick = current_tick;
+
+    // 用子特征的 PnP tvec 更新 EKF
+    const auto &child_features = p_combo->getChildFeatures();
+
+    if (child_features.count(FeatureNode::ChildFeatureType::RUNE_CENTER) > 0)
+    {
+        const auto &center = child_features.at(FeatureNode::ChildFeatureType::RUNE_CENTER);
+        const auto &pose_nodes = center->getPoseCache().getPoseNodes();
+        if (pose_nodes.count(CoordFrame::CAMERA) > 0)
+        {
+            const auto &tvec = pose_nodes.at(CoordFrame::CAMERA).tvec();
+            m_center_ekf.update(Vec3f(
+                static_cast<float>(tvec[0]),
+                static_cast<float>(tvec[1]),
+                static_cast<float>(tvec[2])));
+        }
+    }
+
+    if (child_features.count(FeatureNode::ChildFeatureType::RUNE_TARGET) > 0)
+    {
+        const auto &target = child_features.at(FeatureNode::ChildFeatureType::RUNE_TARGET);
+        const auto &pose_nodes = target->getPoseCache().getPoseNodes();
+        if (pose_nodes.count(CoordFrame::CAMERA) > 0)
+        {
+            const auto &tvec = pose_nodes.at(CoordFrame::CAMERA).tvec();
+            m_target_ekf.update(Vec3f(
+                static_cast<float>(tvec[0]),
+                static_cast<float>(tvec[1]),
+                static_cast<float>(tvec[2])));
+        }
+    }
 }
 
 void RuneTracker::update(FeatureNode_ptr p_rune, int64 tick, const GyroData &gyro_data)
