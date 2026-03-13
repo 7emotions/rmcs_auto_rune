@@ -12,12 +12,12 @@
 //! RuneTrackerEKF 参数模块
 struct RuneTrackerEKFParam
 {
-    //! 位置过程噪声
-    float PROCESS_NOISE_POS = 1.0f;
-    //! 速度过程噪声
-    float PROCESS_NOISE_VEL = 10.0f;
-    //! 测量噪声
-    float MEASUREMENT_NOISE = 5.0f;
+    //! 位置过程噪声（越小输出越平滑，响应越慢）
+    float PROCESS_NOISE_POS = 1e-2f;
+    //! 速度过程噪声（越小速度估计越稳定）
+    float PROCESS_NOISE_VEL = 1e-1f;
+    //! 测量噪声（越大对测量值信任度越低，输出越平滑，抖动越小）
+    float MEASUREMENT_NOISE = 50.0f;
 
     YML_INIT(
         RuneTrackerEKFParam,
