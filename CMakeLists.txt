@@ -3,6 +3,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "禁止在源码目录中进行构建,防止编译生成文件污染源代码")
 endif()
 
+set(CMAKE_BUILD_TYPE Debug)
 
 cmake_minimum_required(VERSION 3.15)
 

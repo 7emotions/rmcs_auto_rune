@@ -2,17 +2,24 @@
 #include "../include/rune_detect_demo/rune_detect_demo_param.h"
 #include "../include/rune_detect_demo/rune_rotation_param.h"
 #include "vc/core/debug_tools/window_auto_layout.h"
+#include "vc/dataio/dataio.h"
+#include "vc/feature/rune_tracker.h"
 #include "vc/math/pose_node.hpp"
+#include "vc/math/transform6D.hpp"
 
 #include <cmath>
 #include <opencv2/core/utility.hpp>
 
-using namespace std;
+#include <fstream>
+#include <opencv2/core/utility.hpp>
+#include <sstream>
 using namespace cv;
 
 void process(cv::VideoCapture& vid_cap) {
-    static auto rune_groups = vector<FeatureNode_ptr>{};
+    static auto rune_groups = std::vector<FeatureNode_ptr>{};
     static auto rune_detector = RuneDetector::make_detector();
+    static bool csv_initialized = false;
+    static std::ofstream csv_file;
 
     // 读取识别参数
     // updateParam(vid_cap);
@@ -68,8 +75,8 @@ void process(cv::VideoCapture& vid_cap) {
     //         return a0 + w * df;
     //     });
 
-    FeatureNode_cptr target_tracker = nullptr;
-    for (auto tracker : rune_group->getTrackers()) {
+    FeatureNode_ptr target_tracker = nullptr;
+    for (const auto& tracker : rune_group->getTrackers()) {
         auto tracker_ = TrackingFeatureNode::cast(tracker);
         if (tracker_->getHistoryNodes().size() < 2)
             continue;
@@ -82,22 +89,19 @@ void process(cv::VideoCapture& vid_cap) {
     if (!target_tracker)
         return;
 
+    auto center =
+        RuneCombo::cast(TrackingFeatureNode::cast(target_tracker)->getHistoryNodes().front())
+            ->getChildFeatures()
+            .at(FeatureNode::ChildFeatureType::RUNE_CENTER);
+    auto target =
+        RuneCombo::cast(TrackingFeatureNode::cast(target_tracker)->getHistoryNodes().front())
+            ->getChildFeatures()
+            .at(FeatureNode::ChildFeatureType::RUNE_TARGET);
+    auto rune_tracker = RuneTracker::cast(target_tracker);
+
     // 绘制
     Mat img_show = DebugTools::get()->getImage();
     rune_group->drawFeature(img_show);
-
-    // 计算旋转后的tvec
-    static int64_t last_tick_ms = 0;
-    int64_t current_tick_ms =
-        static_cast<int64_t>(cv::getTickCount() * 1000.0 / cv::getTickFrequency());
-    double dt_ms = (last_tick_ms > 0) ? static_cast<double>(current_tick_ms - last_tick_ms) : 16.0;
-    last_tick_ms = current_tick_ms;
-    bool use_sine_mode = false;
-    Vec3d rotated_tvec = calcRotatedTvec(rune_group, target_tracker, use_sine_mode, dt_ms);
-    auto pose = target_tracker->getPoseCache().getPoseNodes().at(CoordFrame::CAMERA).tvec();
-    VC_PASS_INFO("Raw tvec: [%.2f, %.2f, %.2f]", pose[0], pose[1], pose[2]);
-    VC_PASS_INFO(
-        "Rotated tvec: [%.2f, %.2f, %.2f]", rotated_tvec[0], rotated_tvec[1], rotated_tvec[2]);
 }
 
 cv::Vec3d calcRotatedTvec(
@@ -260,7 +264,8 @@ void parseCommandLine(int argc, char** argv) {
         cli.printHelp(argv[0]);
         VC_WARNING_INFO(
             "程序使用示例：\n./VisCore_rune_detect_demo_exe -i "
-            "./test_video/rune_video.mp4\n注意:\n 1.视频路径为绝对路径\n 2.视频路径不要带外括号");
+            "./test_video/rune_video.mp4\n注意:\n 1.视频路径为绝对路径\n "
+            "2.视频路径不要带外括号");
         exit(1);
     }
 
