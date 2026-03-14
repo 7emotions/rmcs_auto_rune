@@ -27,4 +27,7 @@ add_subdirectory(modules)
 # VisCore 测试模块
 add_subdirectory(examples)
 
+ament_export_include_directories(include)
+ament_export_targets(${PROJECT_NAME}_targets HAS_LIBRARY_TARGET)
+
 ament_package()
