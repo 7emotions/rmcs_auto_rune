@@ -82,6 +82,22 @@ public:
     cv::Point3f getFilteredTargetPos() const { return m_target_ekf.getState(); }
 
     /**
+     * @brief 预测 dt 秒后的神符中心位置（不修改滤波器状态）
+     *
+     * @param[in] dt_sec 向前预测的时间（秒）
+     * @return 预测的 3D 中心位置（相机坐标系），基于恒速模型: pos + vel * dt
+     */
+    cv::Point3f getPredictedCenterPos(double dt_sec) const { return m_center_ekf.predictAhead(dt_sec); }
+
+    /**
+     * @brief 预测 dt 秒后的神符靶心位置（不修改滤波器状态）
+     *
+     * @param[in] dt_sec 向前预测的时间（秒）
+     * @return 预测的 3D 靶心位置（相机坐标系），基于恒速模型: pos + vel * dt
+     */
+    cv::Point3f getPredictedTargetPos(double dt_sec) const { return m_target_ekf.predictAhead(dt_sec); }
+
+    /**
      * @brief 中心 EKF 是否已用首帧测量初始化
      */
     bool isCenterEKFInitialized() const { return m_center_ekf.isInitialized(); }

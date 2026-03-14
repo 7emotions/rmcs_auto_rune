@@ -71,6 +71,15 @@ public:
     cv::Point3f getVelocity() const;
 
     /**
+     * @brief 预测 dt 秒后的位置（不修改滤波器状态）
+     *
+     * @param[in] dt 向前预测的时间（秒），可为负数（后向预测）
+     * @return 预测位置，等价于 pos + vel * dt（恒速模型）
+     * @note 若滤波器尚未初始化，返回原点 (0, 0, 0)
+     */
+    cv::Point3f predictAhead(double dt) const;
+
+    /**
      * @brief 滤波器是否已初始化
      *
      * @return true 已用第一帧测量初始化，false 尚未初始化

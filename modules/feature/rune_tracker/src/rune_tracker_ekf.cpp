@@ -89,6 +89,19 @@ cv::Point3f RuneTrackerEKF::getVelocity() const
     return cv::Point3f(m_x(3), m_x(4), m_x(5));
 }
 
+cv::Point3f RuneTrackerEKF::predictAhead(double dt) const
+{
+    if (!m_initialized)
+        return cv::Point3f(0.0f, 0.0f, 0.0f);
+
+    float fdt = static_cast<float>(dt);
+    // 恒速模型：predicted_pos = pos + vel * dt
+    return cv::Point3f(
+        m_x(0) + m_x(3) * fdt,
+        m_x(1) + m_x(4) * fdt,
+        m_x(2) + m_x(5) * fdt);
+}
+
 bool RuneTrackerEKF::isInitialized() const
 {
     return m_initialized;
