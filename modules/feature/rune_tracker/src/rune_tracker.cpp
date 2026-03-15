@@ -2,6 +2,8 @@
 #include "vc/feature/rune_tracker_param.h"
 #include "vc/feature/rune_combo.h"
 #include "vc/camera/camera_param.h"
+#include "vc/math/pose_node.hpp"
+#include <cmath>
 
 using namespace std;
 using namespace cv;
@@ -12,6 +14,71 @@ void RuneTracker::updateFromRune(FeatureNode_ptr p_combo)
     setPoseCache(p_combo->getPoseCache());
     getHistoryNodes().push_front(p_combo);
     getHistoryTicks().push_front(p_combo->getTick());
+
+    int64_t current_tick = p_combo->getTick();
+
+    // 计算 dt 并执行预测步骤
+    if (m_prev_tick > 0 && (m_center_ekf.isInitialized() || m_target_ekf.isInitialized()))
+    {
+        double dt = static_cast<double>(current_tick - m_prev_tick) / cv::getTickFrequency();
+        // 合理性校验：dt 超出 [0, 1) 秒时跳过预测（防止首帧或长时间掉帧后跳变）
+        if (dt > 0.0 && dt < 1.0)
+        {
+            m_center_ekf.predict(dt);
+            m_target_ekf.predict(dt);
+            m_circular_ekf.predict(dt);
+        }
+    }
+    m_prev_tick = current_tick;
+
+    // 用子特征的 PnP tvec 更新 EKF
+    const auto &child_features = p_combo->getChildFeatures();
+
+    if (child_features.count(FeatureNode::ChildFeatureType::RUNE_CENTER) > 0)
+    {
+        const auto &center = child_features.at(FeatureNode::ChildFeatureType::RUNE_CENTER);
+        const auto &pose_nodes = center->getPoseCache().getPoseNodes();
+        if (pose_nodes.count(CoordFrame::CAMERA) > 0)
+        {
+            const auto &tvec = pose_nodes.at(CoordFrame::CAMERA).tvec();
+            m_center_ekf.update(Vec3f(
+                static_cast<float>(tvec[0]),
+                static_cast<float>(tvec[1]),
+                static_cast<float>(tvec[2])));
+        }
+    }
+
+    if (child_features.count(FeatureNode::ChildFeatureType::RUNE_TARGET) > 0)
+    {
+        const auto &target = child_features.at(FeatureNode::ChildFeatureType::RUNE_TARGET);
+        const auto &pose_nodes = target->getPoseCache().getPoseNodes();
+        if (pose_nodes.count(CoordFrame::CAMERA) > 0)
+        {
+            const auto &tvec = pose_nodes.at(CoordFrame::CAMERA).tvec();
+            m_target_ekf.update(Vec3f(
+                static_cast<float>(tvec[0]),
+                static_cast<float>(tvec[1]),
+                static_cast<float>(tvec[2])));
+        }
+    }
+
+    // 使用滤波后的 center 和 target 位置更新圆周运动 EKF
+    if (m_center_ekf.isInitialized() && m_target_ekf.isInitialized())
+    {
+        const cv::Point3f fc = m_center_ekf.getState();
+        const cv::Point3f ft = m_target_ekf.getState();
+
+        const float dx = ft.x - fc.x;
+        const float dy = ft.y - fc.y;
+        m_current_radius  = std::sqrt(dx * dx + dy * dy);
+        m_current_target_z = ft.z;
+
+        if (m_current_radius > 1e-3f)
+        {
+            const float theta_meas = std::atan2(dy, dx);
+            m_circular_ekf.update(theta_meas);
+        }
+    }
 }
 
 void RuneTracker::update(FeatureNode_ptr p_rune, int64 tick, const GyroData &gyro_data)
@@ -38,6 +105,26 @@ void RuneTracker::updateVisible(bool is_visible)
     {
         ++__vanish_num;
     }
+}
+
+cv::Point3f RuneTracker::getPredictedTargetPos(double dt_sec) const
+{
+    // 优先使用圆周运动 EKF（具有正确的运动模型约束）
+    if (m_circular_ekf.isInitialized() && m_current_radius > 1e-3f)
+    {
+        // 中心位置也向前预测，以补偿相机运动
+        const cv::Point3f predicted_center = m_center_ekf.predictAhead(dt_sec);
+        return m_circular_ekf.predictAheadPos(dt_sec, predicted_center,
+                                               m_current_radius, m_current_target_z);
+    }
+    // 退化：圆周 EKF 尚未初始化时，回退到 Cartesian 恒速预测
+    return m_target_ekf.predictAhead(dt_sec);
+}
+
+void RuneTracker::setMotionMode(bool is_sinusoidal)
+{
+    m_circular_ekf.setMode(is_sinusoidal ? RuneCircularEKF::Mode::SINUSOIDAL
+                                         : RuneCircularEKF::Mode::CONSTANT);
 }
 
 inline void drawPentagonWedge(cv::Mat &img, const PoseNode &p,

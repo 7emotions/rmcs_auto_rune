@@ -86,7 +86,8 @@ function(VisCore_add_module module_name)
     if(MD_INTERFACE)
         # 添加头文件和第三方库依赖头文件
         target_include_directories(${module_lib_name} INTERFACE
-            ${CMAKE_CURRENT_LIST_DIR}/include
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+            $<INSTALL_INTERFACE:include>
             ${MD_EXTRA_HEADER})
         # VisCore公共模块依赖头文件
         foreach(depends_modules ${MD_DEPENDS})
@@ -100,7 +101,8 @@ function(VisCore_add_module module_name)
     else() # 动态库或静态库链接
         # 添加头文件和第三方库依赖头文件
         target_include_directories(${module_lib_name} PUBLIC
-            ${CMAKE_CURRENT_LIST_DIR}/include
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+            $<INSTALL_INTERFACE:include>
             ${MD_EXTRA_HEADER})
         # VisCore公共模块依赖头文件
         foreach(depends_modules ${MD_DEPENDS})
@@ -139,10 +141,16 @@ function(VisCore_add_module module_name)
         endif()
     endif()
     
-    # 安装库文件（只对非INTERFACE库）
-    if(NOT MD_INTERFACE)
+    # 安装并导出目标
+    if(MD_INTERFACE)
         install(TARGETS ${module_lib_name}
             EXPORT ${PROJECT_NAME}_targets
+            INCLUDES DESTINATION include
+        )
+    else()
+        install(TARGETS ${module_lib_name}
+            EXPORT ${PROJECT_NAME}_targets
+            INCLUDES DESTINATION include
             ARCHIVE DESTINATION lib
             LIBRARY DESTINATION lib
             RUNTIME DESTINATION bin

@@ -3,6 +3,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "禁止在源码目录中进行构建,防止编译生成文件污染源代码")
 endif()
 
+set(CMAKE_BUILD_TYPE Debug)
 
 cmake_minimum_required(VERSION 3.15)
 
@@ -25,5 +26,8 @@ add_subdirectory(modules)
 
 # VisCore 测试模块
 add_subdirectory(examples)
+
+ament_export_include_directories(include)
+ament_export_targets(${PROJECT_NAME}_targets HAS_LIBRARY_TARGET)
 
 ament_package()

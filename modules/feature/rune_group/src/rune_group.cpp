@@ -9,6 +9,7 @@
 #include "vc/feature/rune_group_filter.h"
 #include "vc/feature/rune_group_param.h"
 #include "vc/feature/rune_target.h"
+#include "vc/feature/rune_tracker.h"
 
 using namespace std;
 using namespace cv;
@@ -342,14 +343,30 @@ int findMode(const vector<int>& nums) {
 bool RuneGroup::updateCenterEstimation() {
     if (getTrackers().empty())
         return false;
-    const auto& tracker = TrackingFeatureNode::cast(getTrackers().front());
+    const auto tracker_raw = getTrackers().front();
+    const auto tracker = TrackingFeatureNode::cast(tracker_raw);
     if (tracker->getHistoryNodes().empty())
         return false;
     const auto& combo = tracker->getHistoryNodes().front();
-    const auto& center =
+    const auto center =
         RuneCenter::cast(combo->getChildFeatures().at(ChildFeatureType::RUNE_CENTER));
-    auto center_to_gyro =
-        center->getPoseCache().getPoseNodes()[CoordFrame::CAMERA] + getCamToGyro();
+    const auto& raw_cam_pose = center->getPoseCache().getPoseNodes().at(CoordFrame::CAMERA);
+
+    // 优先使用 EKF 滤波后的中心位置，回退到原始 tvec
+    cv::Vec3d center_tvec_cam;
+    const auto rune_tracker = RuneTracker::cast(tracker_raw);
+    if (rune_tracker && rune_tracker->isCenterEKFInitialized())
+    {
+        auto fp = rune_tracker->getFilteredCenterPos();
+        center_tvec_cam = cv::Vec3d(fp.x, fp.y, fp.z);
+    }
+    else
+    {
+        center_tvec_cam = raw_cam_pose.tvec();
+    }
+
+    PoseNode filtered_center_to_cam(raw_cam_pose.rmat(), center_tvec_cam);
+    auto center_to_gyro = filtered_center_to_cam + getCamToGyro();
     CenterEstimationInfo info{true, center_to_gyro.tvec(), getTick()};
     setCenterEstimationInfo(info);
     return true;
