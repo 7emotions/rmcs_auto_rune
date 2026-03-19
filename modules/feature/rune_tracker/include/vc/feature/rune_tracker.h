@@ -120,6 +120,10 @@ public:
     //! 当前估计角速度（rad/s）
     float getAngularVelocity() const { return m_circular_ekf.getAngularVelocity(); }
 
+    bool isPredictionStable() const;
+
+    void markPredictionUnstable(int cooldown_frames = -1);
+
     /**
      * @brief 中心 EKF 是否已用首帧测量初始化
      */
@@ -131,6 +135,9 @@ public:
     bool isTargetEKFInitialized() const { return m_target_ekf.isInitialized(); }
 
 private:
+    void advancePredictionStability();
+    void resetTrackingState();
+
     /**
      * @brief 从神符组合体更新内部数据
      *
@@ -150,6 +157,8 @@ private:
     float m_current_target_z = 0.0f;
     //! 上一帧时间戳（用于计算 dt）
     int64_t m_prev_tick = 0;
+    int m_prediction_stable_frames = 0;
+    int m_prediction_unstable_cooldown = 0;
 };
 
 //! 神符追踪器智能指针类型

@@ -17,6 +17,8 @@
 #include "vc/feature/rune_center_param.h"
 #include "vc/feature/rune_fan_param.h"
 
+#include <array>
+
 using namespace std;
 using namespace cv;
 inline Point2f getCenter(const FeatureNode_cptr feature)
@@ -45,7 +47,8 @@ inline bool setTempRuneType(vector<RuneType> &types, const vector<PoseNode> &pnp
 {
     if (types.size() != 5 || pnp_datas.size() != 5)
         VC_THROW_ERROR("size != 5");
-    unordered_set<size_t> pending = {0, 1, 2, 3, 4};
+    constexpr float kDistanceTieEpsilon = 1e-3f;
+    std::array<bool, 5> pending = {true, true, true, true, true};
     auto getProj = [&](const Matx31f &src, const PoseNode &p)
     {
         vector<Point2f> proj;
@@ -60,13 +63,15 @@ inline bool setTempRuneType(vector<RuneType> &types, const vector<PoseNode> &pnp
                             : (RuneTarget::cast(target)->getActiveFlag() ? RuneType::STRUCK : RuneType::PENDING_STRUCK);
         int idx = -1;
         float min_dist = FLT_MAX;
-        for (auto &n : pending)
+        for (size_t n = 0; n < pending.size(); ++n)
         {
+            if (!pending[n])
+                continue;
             Point2f p1 = target ? getCenter(target) : getCenter(fan);
             Point2f p2 = target ? getProj(rune_target_param.TRANSLATION, pnp_datas[n])
                                 : getProj(RuneFan::cast(fan)->getActiveFlag() ? rune_fan_param.ACTIVE_TRANSLATION : rune_fan_param.INACTIVE_TRANSLATION, pnp_datas[n]);
             float d = getDist(p1, p2);
-            if (d < min_dist)
+            if (d + kDistanceTieEpsilon < min_dist)
             {
                 min_dist = d;
                 idx = (int)n;
@@ -75,11 +80,12 @@ inline bool setTempRuneType(vector<RuneType> &types, const vector<PoseNode> &pnp
         if (idx >= 0 && idx < 5)
         {
             types[idx] = type;
-            pending.erase(idx);
+            pending[idx] = false;
         }
     }
-    for (auto &idx : pending)
-        types[idx] = RuneType::UNSTRUCK;
+    for (size_t idx = 0; idx < pending.size(); ++idx)
+        if (pending[idx])
+            types[idx] = RuneType::UNSTRUCK;
     return true;
 }
 

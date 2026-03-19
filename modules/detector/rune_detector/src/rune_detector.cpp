@@ -3,6 +3,7 @@
 #include "vc/core/debug_tools/window_auto_layout.h"
 #include "vc/detector/rune_detector_param.h"
 #include "vc/feature/rune_group.h"
+#include "vc/feature/rune_tracker.h"
 
 using namespace std;
 using namespace cv;
@@ -36,6 +37,14 @@ inline static void setBaseProperties(
         auto rune_group = RuneGroup::cast(group);
         rune_group->getPoseCache().setGyroData(gyro_data);
         rune_group->setTick(record_time);
+    }
+}
+
+inline static void markTrackersPredictionUnstable(const std::vector<FeatureNode_ptr>& trackers) {
+    for (const auto& tracker : trackers) {
+        auto rune_tracker = RuneTracker::cast(tracker);
+        if (rune_tracker)
+            rune_tracker->markPredictionUnstable();
     }
 }
 
@@ -131,6 +140,7 @@ void RuneDetector::detect(DetectorInput& input, DetectorOutput& output) {
     bool is_vanish_update = false;
     if (!updateRuneGroup()) {
         is_vanish_update = true;
+        markTrackersPredictionUnstable(rune_group->getTrackers());
         // 若更新失败，尝试掉帧状态下的更新
         if (!updateRuneGroupVanish()) {
             is_vanish_update = true;
@@ -157,6 +167,7 @@ void RuneDetector::detect(DetectorInput& input, DetectorOutput& output) {
     // 匹配
     auto rune_trackers = rune_group->getTrackers();
     if (!match(current_combos, rune_trackers, is_vanish_update)) {
+        markTrackersPredictionUnstable(rune_trackers);
         rune_trackers.clear();
         match(current_combos, rune_trackers, is_vanish_update);
     }

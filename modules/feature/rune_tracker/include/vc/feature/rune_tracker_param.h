@@ -25,6 +25,9 @@ struct RuneTrackerParam
     cv::Matx44f MOTION_R = cv::Matx44f::diag({1, 1, 4, 4});
     //! 组合体队列的最大长度
     int MAX_DEQUE_SIZE = 32;
+    int PREDICTION_STABLE_MIN_SUCCESS_FRAMES = 5;
+    int PREDICTION_STABLE_MIN_HISTORY = 5;
+    int PREDICTION_UNSTABLE_COOLDOWN_FRAMES = 3;
 
     YML_INIT(
         RuneTrackerParam,
@@ -34,7 +37,10 @@ struct RuneTrackerParam
         YML_ADD_PARAM(ROTATE_R);
         YML_ADD_PARAM(MOTION_Q);
         YML_ADD_PARAM(MOTION_R);
-        YML_ADD_PARAM(MAX_DEQUE_SIZE););
+        YML_ADD_PARAM(MAX_DEQUE_SIZE);
+        YML_ADD_PARAM(PREDICTION_STABLE_MIN_SUCCESS_FRAMES);
+        YML_ADD_PARAM(PREDICTION_STABLE_MIN_HISTORY);
+        YML_ADD_PARAM(PREDICTION_UNSTABLE_COOLDOWN_FRAMES););
 };
 
 //! RuneTracker 参数实例

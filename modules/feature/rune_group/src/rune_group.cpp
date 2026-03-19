@@ -373,38 +373,44 @@ bool RuneGroup::updateCenterEstimation() {
 }
 
 std::vector<FeatureNode_ptr> RuneGroup::getTrackers() {
-    std::vector<FeatureNode_ptr> t;
+    std::vector<std::pair<std::string, FeatureNode_ptr>> ordered_trackers;
+    ordered_trackers.reserve(getChildFeatures().size());
     for (auto& [id, tr] : getChildFeatures())
+        ordered_trackers.emplace_back(id, tr);
+    std::sort(
+        ordered_trackers.begin(), ordered_trackers.end(),
+        [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
+
+    std::vector<FeatureNode_ptr> t;
+    t.reserve(ordered_trackers.size());
+    for (auto& [id, tr] : ordered_trackers)
         t.emplace_back(tr);
     return t;
 }
 
 const std::vector<FeatureNode_cptr> RuneGroup::getTrackers() const {
-    std::vector<FeatureNode_cptr> t;
+    std::vector<std::pair<std::string, FeatureNode_cptr>> ordered_trackers;
+    ordered_trackers.reserve(getChildFeatures().size());
     for (auto& [id, tr] : getChildFeatures())
+        ordered_trackers.emplace_back(id, tr);
+    std::sort(
+        ordered_trackers.begin(), ordered_trackers.end(),
+        [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
+
+    std::vector<FeatureNode_cptr> t;
+    t.reserve(ordered_trackers.size());
+    for (auto& [id, tr] : ordered_trackers)
         t.emplace_back(tr);
     return t;
 }
 
-template <class T>
-std::string get_shared_id(const std::shared_ptr<T>& sp) {
-    if (!sp)
-        return {};
-    uintptr_t addr = reinterpret_cast<uintptr_t>(std::shared_ptr<void>(sp).get());
-    std::ostringstream oss;
-    oss << "obj-" << std::hex << std::setw(sizeof(uintptr_t) * 2) << std::setfill('0') << addr;
-    return oss.str();
-}
-
 void RuneGroup::setTrackers(const std::vector<FeatureNode_ptr>& trackers) {
     getChildFeatures().clear();
-    for (auto& tr : trackers) {
+    for (size_t i = 0; i < trackers.size(); ++i) {
+        auto& tr = trackers[i];
         if (!tr)
             continue;
-        auto id = get_shared_id(tr);
-        if (id.empty())
-            continue;
-        getChildFeatures()[id] = tr;
+        getChildFeatures()[cv::format("tracker-%02zu", i)] = tr;
     }
 }
 
